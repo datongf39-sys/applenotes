@@ -1163,6 +1163,7 @@ function hideExportDialog(){ document.getElementById('export-overlay').classList
 
 async function startExport(){
   const card=document.getElementById('phone-note-card');
+  const editorCenter=document.getElementById('editor-center');
   const cardW=card.offsetWidth;
   const pageH=getRatioPageH(cardW);
   const cardH=card.scrollHeight;
@@ -1190,11 +1191,21 @@ async function startExport(){
     ctx.font=`400 ${17*SCALE}px -apple-system,"PingFang SC",sans-serif`;
     ctx.fillText('备忘录',38*SCALE,nh/2);
   }
+  // Temporarily lift card out of scroll container so html2canvas sees full height
+  const placeholder=document.createElement('div');
+  placeholder.style.cssText=`width:${cardW}px;height:${cardH}px;flex-shrink:0;`;
+  card.style.cssText=`position:fixed;left:-${cardW+20}px;top:0;width:${cardW}px;z-index:-1;background:#fff;`;
+  editorCenter.insertBefore(placeholder, editorCenter.firstChild);
+  document.body.appendChild(card);
+  // Small delay to let browser recalc layout
+  await new Promise(r=>setTimeout(r,60));
   try{
     setProgress(0,pageCount+1,'渲染全图…');
     const fullCanvas=await html2canvas(card,{
-      width:cardW,height:cardH,windowWidth:cardW,windowHeight:cardH+300,
-      scale:SCALE,useCORS:true,backgroundColor:'#ffffff',logging:false,scrollX:0,scrollY:0
+      width:cardW,height:cardH,
+      windowWidth:cardW,windowHeight:cardH,
+      scale:SCALE,useCORS:true,backgroundColor:'#ffffff',logging:false,
+      x:0,y:0,scrollX:0,scrollY:0
     });
     const zip=new JSZip();
     const noteTitle=getNoteFilename();
@@ -1227,11 +1238,15 @@ async function startExport(){
     const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     const a=document.createElement('a');a.href=URL.createObjectURL(zipBlob);
     a.download=`${noteTitle}_${pageCount}页.zip`;a.click();
+  }catch(e){
+    hideExportDialog();toast('❌ 导出失败，请重试');console.error(e);
+  }finally{
+    // Restore card to original position
+    card.style.cssText='';
+    editorCenter.insertBefore(card, placeholder);
+    placeholder.remove();
     card.querySelectorAll('.page-divider').forEach(el=>el.style.visibility='');
     hideExportDialog();toast(`✅ 已导出 ${pageCount} 页图片`);
-  }catch(e){
-    card.querySelectorAll('.page-divider').forEach(el=>el.style.visibility='');
-    hideExportDialog();toast('❌ 导出失败，请重试');console.error(e);
   }
 }
 
