@@ -215,7 +215,17 @@ body {
 
   /* 工具栏触控优化 */
   .tb-btn { height:38px; min-width:32px; font-size:13px; }
-  .bottom-toolbar { padding-bottom:calc(10px + var(--safe-bottom)); }
+
+  /* 手机工具栏：固定在底部，键盘弹出时通过 JS 上移 */
+  .bottom-toolbar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding-bottom: calc(10px + var(--safe-bottom));
+    z-index: 100;
+    transition: transform 0.05s linear;
+  }
+  /* 编辑区底部留出工具栏的空间 */
+  #editor-area { padding-bottom: 56px; }
 }
 
 @media (min-width:769px) {
@@ -1087,6 +1097,33 @@ window.addEventListener('resize', ()=>{
   if(curId) setTimeout(updatePageDividers,50);
   initMobileLayout();
 });
+
+/* ══ 手机键盘弹出：工具栏跟随上移 ══ */
+(function setupKeyboardListener(){
+  const toolbar = document.querySelector('.bottom-toolbar');
+  if(!toolbar || !window.visualViewport) return;
+
+  function onViewportChange(){
+    if(window.innerWidth > 768){
+      toolbar.style.transform = '';
+      return;
+    }
+    const keyboardH = window.innerHeight
+      - window.visualViewport.height
+      - window.visualViewport.offsetTop;
+
+    if(keyboardH > 50){
+      toolbar.style.transition = 'transform 0s';
+      toolbar.style.transform = `translateY(-${Math.round(keyboardH)}px)`;
+    } else {
+      toolbar.style.transition = 'transform 0.22s ease';
+      toolbar.style.transform = '';
+    }
+  }
+
+  window.visualViewport.addEventListener('resize', onViewportChange);
+  window.visualViewport.addEventListener('scroll', onViewportChange);
+})();
 </script>
 </body>
 </html>
