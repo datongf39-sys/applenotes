@@ -559,24 +559,24 @@ function updatePageDividers() {
   const card = document.getElementById('phone-note-card');
   if (!card) return;
   card.querySelectorAll('.page-divider').forEach(el => el.remove());
-  const cardW = card.offsetWidth;
-  const pageH = getRatioPageH(cardW);
-  const cardH = card.scrollHeight;
-  const NAV_H = 28;
-  const contentH = pageH - NAV_H;
+  const cardW    = card.offsetWidth;
+  const pageH    = getRatioPageH(cardW);
+  const navH     = document.getElementById('phone-nav').offsetHeight;
+  const contentH = pageH - navH;
+  const cardH    = card.scrollHeight;
+  // First divider: after first full page (navH + contentH = pageH from card top)
+  // Subsequent dividers: every contentH after that
+  let pos = pageH;
   let page = 1;
-  const positions = [pageH];
-  let y = pageH + contentH;
-  while (y < cardH) { positions.push(y); y += contentH; }
-  positions.forEach(pos => {
-    if (pos >= cardH) return;
+  while (pos < cardH) {
     const div = document.createElement('div');
     div.className = 'page-divider';
     div.style.top = pos + 'px';
     div.innerHTML = `<span class="page-divider-label">第${page}页 / 第${page+1}页</span>`;
     card.appendChild(div);
+    pos += contentH;
     page++;
-  });
+  }
 }
 
 /* ══ LIST ══ */
@@ -1183,17 +1183,21 @@ function hideExportDialog(){ document.getElementById('export-overlay').classList
 async function startExport(){
   const card         = document.getElementById('phone-note-card');
   const nav          = document.getElementById('phone-nav');
+  const content      = document.getElementById('phone-note-content');
   const editorCenter = document.getElementById('editor-center');
 
   const cardW    = card.offsetWidth;
-  const navH     = nav.offsetHeight;           // real nav height
-  const pageH    = getRatioPageH(cardW);       // full page height incl nav
-  const contentH = pageH - navH;               // content area per page
+  const navH     = nav.offsetHeight;
+  const pageH    = getRatioPageH(cardW);   // same as dividers
+  const contentH = pageH - navH;           // same as dividers
   const SCALE    = 3;
 
-  // Measure full content height before any DOM changes
-  const fullContentH = card.scrollHeight - navH;
-  const pageCount    = Math.max(1, Math.ceil(fullContentH / contentH));
+  // fullCardH: total card height = navH + all content
+  // We use card.scrollHeight which matches what dividers use
+  const fullCardH = card.scrollHeight;
+  // pageCount: mirror exactly what updatePageDividers does
+  // first divider at pageH, then every contentH → same count
+  const pageCount = Math.max(1, Math.ceil((fullCardH - navH) / contentH));
 
   card.querySelectorAll('.page-divider').forEach(el=>el.style.visibility='hidden');
   document.getElementById('export-actions').style.display='none';
@@ -1260,7 +1264,7 @@ async function startExport(){
           0, 0, cardW*SCALE, navH*SCALE);
 
         // Draw content slice
-        const sliceH = Math.min(contentH, fullContentH - i*contentH);
+        const sliceH = Math.min(contentH, (fullCardH - navH) - i*contentH);
         ctx.drawImage(fullCanvas,
           0, Math.round(srcContentY*SCALE), cardW*SCALE, Math.round(sliceH*SCALE),
           0, navH*SCALE,                    cardW*SCALE, Math.round(sliceH*SCALE));
