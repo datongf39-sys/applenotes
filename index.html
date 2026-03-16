@@ -797,40 +797,49 @@ function deleteCurrentNote(){
 function cmd(c){ document.getElementById('note-body').focus(); document.execCommand(c,false,null); }
 function fmtBlock(tag){
   const body = document.getElementById('note-body');
-  body.focus();
-  const sel = window.getSelection();
-  if(!sel || sel.rangeCount===0) return;
+  const sel  = window.getSelection();
+
+  // Save range BEFORE focus (focus can collapse the selection)
+  const savedRange = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0).cloneRange() : null;
+
+  body.focus({preventScroll: true});
+
+  // Restore saved range after focus
+  if(savedRange){
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  } else {
+    return;
+  }
+
   const range = sel.getRangeAt(0);
 
   // Collect all direct block children of body that overlap the selection
   const blocks = [];
-  for(const child of body.childNodes){
-    if(child.nodeType===3){
-      // bare text node — wrap it in a p first
+  for(const child of Array.from(body.childNodes)){
+    if(child.nodeType === 3){
       if(range.intersectsNode(child)){
-        const p=document.createElement('p');
+        const p = document.createElement('p');
         child.replaceWith(p);
         p.appendChild(child);
         blocks.push(p);
       }
-    } else if(child.nodeType===1){
+    } else if(child.nodeType === 1){
       if(range.intersectsNode(child)) blocks.push(child);
     }
   }
 
-  if(blocks.length===0) return;
+  if(blocks.length === 0) return;
 
-  let firstNew=null;
-  blocks.forEach(node=>{
-    // Skip non-block nodes (inline spans etc that are direct children)
+  let firstNew = null;
+  blocks.forEach(node => {
     if(!/^(H1|H2|H3|H4|H5|H6|P|BLOCKQUOTE|DIV|LI|UL|OL)$/.test(node.nodeName)) return;
     const newEl = document.createElement(tag);
     newEl.innerHTML = node.innerHTML;
     node.replaceWith(newEl);
-    if(!firstNew) firstNew=newEl;
+    if(!firstNew) firstNew = newEl;
   });
 
-  // Restore selection
   if(firstNew){
     const r = document.createRange();
     r.selectNodeContents(firstNew);
