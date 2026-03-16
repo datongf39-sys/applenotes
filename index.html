@@ -834,44 +834,39 @@ function insertCallout(){
   const body=document.getElementById('note-body');
   body.focus();
   const sel=window.getSelection();
-  // Grab selected text (if any) to pre-fill callout
+
+  // Grab selected text first (before we touch the DOM)
   let selectedText='';
   if(sel&&sel.rangeCount>0&&!sel.isCollapsed){
     selectedText=sel.toString();
-    sel.getRangeAt(0).deleteContents();
   }
-  // Build callout element
-  const callout=document.createElement('div');
-  callout.className='note-callout';
-  if(selectedText){
-    callout.textContent=selectedText;
-  } else {
-    callout.innerHTML='<br>';
+
+  // Use a unique marker ID so we can find the callout after insertion
+  const uid='callout-'+Date.now();
+  const inner=selectedText
+    ? selectedText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    : '';
+  const html=`<div class="note-callout" id="${uid}">${inner||'<br>'}</div><p><br></p>`;
+
+  // execCommand keeps undo history and inserts at current cursor position
+  document.execCommand('insertHTML', false, html);
+
+  // Bind paste→plaintext on the newly inserted callout
+  const callout=body.querySelector('#'+uid);
+  if(callout){
+    callout.removeAttribute('id');
+    callout.addEventListener('paste',(e)=>{
+      e.preventDefault();
+      const text=(e.clipboardData||window.clipboardData).getData('text/plain');
+      document.execCommand('insertText',false,text);
+    });
+    callout.addEventListener('input',()=>triggerAutoSave());
+    // Place cursor inside callout
+    const r=document.createRange();
+    r.selectNodeContents(callout);
+    r.collapse(false);
+    sel.removeAllRanges();sel.addRange(r);
   }
-  // Intercept paste inside callout → strip to plain text
-  callout.addEventListener('paste',(e)=>{
-    e.preventDefault();
-    const text=(e.clipboardData||window.clipboardData).getData('text/plain');
-    document.execCommand('insertText',false,text);
-  });
-  callout.addEventListener('input',()=>triggerAutoSave());
-  // Insert at cursor
-  if(sel&&sel.rangeCount>0){
-    const range=sel.getRangeAt(0);
-    let node=range.startContainer;
-    while(node&&node.parentNode!==body) node=node.parentNode;
-    if(node&&node.parentNode===body){ node.after(callout); }
-    else { body.appendChild(callout); }
-  } else {
-    body.appendChild(callout);
-  }
-  const p=document.createElement('p');p.innerHTML='<br>';
-  callout.after(p);
-  // Place cursor at end of callout
-  const r=document.createRange();
-  r.selectNodeContents(callout);
-  r.collapse(false);
-  sel.removeAllRanges();sel.addRange(r);
   triggerAutoSave();
 }
 
