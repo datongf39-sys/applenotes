@@ -1229,7 +1229,6 @@ async function startExport(){
   };
 
   // ── Move card off-screen so html2canvas sees its full unclipped height ──
-  const fullCardH = card.scrollHeight;
   const origStyle = card.getAttribute('style') || '';
   card.style.cssText = `position:fixed;left:-${cardW+40}px;top:0;width:${cardW}px;height:auto;z-index:-999;border-radius:0;box-shadow:none;overflow:visible;`;
 
