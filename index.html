@@ -1181,18 +1181,19 @@ function showExportDialog(){
 function hideExportDialog(){ document.getElementById('export-overlay').classList.remove('show'); }
 
 async function startExport(){
-  const card        = document.getElementById('phone-note-card');
-  const nav         = document.getElementById('phone-nav');
-  const content     = document.getElementById('phone-note-content');
-  const editorCenter= document.getElementById('editor-center');
+  const card         = document.getElementById('phone-note-card');
+  const nav          = document.getElementById('phone-nav');
+  const editorCenter = document.getElementById('editor-center');
 
-  const cardW   = card.offsetWidth;
-  const navH    = nav.offsetHeight;
-  const pageH   = getRatioPageH(cardW);
-  const bodyH   = pageH - navH;
-  const fullH   = content.scrollHeight;
-  const pageCount = Math.max(1, Math.ceil(fullH / bodyH));
-  const SCALE   = 3;
+  const cardW    = card.offsetWidth;
+  const navH     = nav.offsetHeight;           // real nav height
+  const pageH    = getRatioPageH(cardW);       // full page height incl nav
+  const contentH = pageH - navH;               // content area per page
+  const SCALE    = 3;
+
+  // Measure full content height before any DOM changes
+  const fullContentH = card.scrollHeight - navH;
+  const pageCount    = Math.max(1, Math.ceil(fullContentH / contentH));
 
   card.querySelectorAll('.page-divider').forEach(el=>el.style.visibility='hidden');
   document.getElementById('export-actions').style.display='none';
@@ -1203,61 +1204,73 @@ async function startExport(){
     document.getElementById('progress-text').textContent=msg;
   };
 
-  // ── Build a hidden off-screen clone for each page render ──
-  // The clone has: real nav on top + content shifted by -scrollY via margin-top
-  const offscreen = document.createElement('div');
-  offscreen.style.cssText=`position:fixed;left:-${cardW*2+40}px;top:0;width:${cardW}px;background:#fff;border-radius:12px;overflow:hidden;z-index:-1;`;
-  document.body.appendChild(offscreen);
+  // ── Move card off-screen so html2canvas sees its full unclipped height ──
+  const fullCardH = card.scrollHeight;
+  const origStyle = card.getAttribute('style') || '';
+  card.style.cssText = `position:fixed;left:-${cardW+40}px;top:0;width:${cardW}px;height:auto;z-index:-999;border-radius:0;box-shadow:none;overflow:visible;`;
+
+  const placeholder = document.createElement('div');
+  placeholder.style.cssText = `width:${cardW}px;height:${fullCardH}px;flex-shrink:0;visibility:hidden;`;
+  editorCenter.insertBefore(placeholder, card.nextSibling);
+  document.body.appendChild(card);
+
+  await new Promise(r=>setTimeout(r,80));
 
   const zip = new JSZip();
   const noteTitle = getNoteFilename();
 
   try{
+    setProgress(0, pageCount+1, '渲染全图…');
+    // Capture the entire card as one canvas
+    const fullCanvas = await html2canvas(card, {
+      width:       cardW,
+      height:      fullCardH,
+      windowWidth: cardW,
+      windowHeight:fullCardH,
+      scale:       SCALE,
+      useCORS:     true,
+      backgroundColor: '#ffffff',
+      logging:     false,
+      x:0, y:0, scrollX:0, scrollY:0,
+    });
+
     for(let i=0;i<pageCount;i++){
-      setProgress(i, pageCount, `生成第 ${i+1} / ${pageCount} 页…`);
-      await new Promise(r=>setTimeout(r,16));
+      setProgress(i+1, pageCount+1, `生成第 ${i+1} / ${pageCount} 页…`);
+      await new Promise(r=>setTimeout(r,8));
 
-      const scrollY = i * bodyH;
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width  = cardW * SCALE;
+      pageCanvas.height = pageH * SCALE;
+      const ctx = pageCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
 
-      // Clone nav + content into offscreen div
-      offscreen.innerHTML='';
-      const navClone     = nav.cloneNode(true);
-      const contentClone = content.cloneNode(true);
+      if(i === 0){
+        // Page 1: top slice of the full canvas
+        ctx.drawImage(fullCanvas,
+          0, 0, cardW*SCALE, pageH*SCALE,
+          0, 0, cardW*SCALE, pageH*SCALE);
+      } else {
+        // Page N: nav slice from top, then content slice from correct offset
+        const srcContentY = navH + i * contentH;  // where this page's content starts in fullCanvas
 
-      // Shift content up so the right page slice is visible within bodyH window
-      contentClone.style.cssText=`
-        margin-top:-${scrollY}px;
-        padding-bottom:0;
-        overflow:visible;
-        height:auto;
-        max-height:none;
-        background:#fff;
-      `;
-      offscreen.appendChild(navClone);
-      offscreen.appendChild(contentClone);
+        // Draw nav (always from top of fullCanvas)
+        ctx.drawImage(fullCanvas,
+          0, 0, cardW*SCALE, navH*SCALE,
+          0, 0, cardW*SCALE, navH*SCALE);
 
-      // Set offscreen height to exactly pageH so html2canvas clips to one page
-      offscreen.style.height = pageH+'px';
+        // Draw content slice
+        const sliceH = Math.min(contentH, fullContentH - i*contentH);
+        ctx.drawImage(fullCanvas,
+          0, Math.round(srcContentY*SCALE), cardW*SCALE, Math.round(sliceH*SCALE),
+          0, navH*SCALE,                    cardW*SCALE, Math.round(sliceH*SCALE));
+      }
 
-      await new Promise(r=>setTimeout(r,10));
-
-      const canvas = await html2canvas(offscreen,{
-        width:  cardW,
-        height: pageH,
-        windowWidth:  cardW,
-        windowHeight: pageH,
-        scale: SCALE,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        x:0, y:0, scrollX:0, scrollY:0,
-      });
-
-      const blob = await new Promise(r=>canvas.toBlob(r,'image/png'));
+      const blob = await new Promise(r=>pageCanvas.toBlob(r,'image/png'));
       zip.file(`${noteTitle}_第${String(i+1).padStart(2,'0')}页.png`, blob);
     }
 
-    setProgress(pageCount, pageCount, '打包压缩包…');
+    setProgress(pageCount+1, pageCount+1, '打包压缩包…');
     await new Promise(r=>setTimeout(r,30));
     const zipBlob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     const a = document.createElement('a');
@@ -1267,7 +1280,10 @@ async function startExport(){
   } catch(e){
     toast('❌ 导出失败，请重试'); console.error(e);
   } finally{
-    offscreen.remove();
+    // Restore card exactly where it was
+    editorCenter.insertBefore(card, placeholder);
+    placeholder.remove();
+    card.setAttribute('style', origStyle);
     card.querySelectorAll('.page-divider').forEach(el=>el.style.visibility='');
     hideExportDialog();
     toast(`✅ 已导出 ${pageCount} 页图片`);
