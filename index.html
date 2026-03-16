@@ -72,7 +72,7 @@ body {
 .editor-center { flex:1; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:24px 24px 20px; background:var(--bg); }
 /* ─── CARD ─── */
 .phone-note-card { position:relative; background:#fff; width:390px; flex-shrink:0; box-shadow:0 2px 20px rgba(0,0,0,0.12),0 1px 4px rgba(0,0,0,0.06); border-radius:12px; overflow:hidden; }
-.phone-nav { display:flex; align-items:center; justify-content:space-between; padding:8px 20px 6px; background:#fff; }
+.phone-nav { display:flex; align-items:center; justify-content:space-between; padding:5px 20px 4px; background:#fff; }
 .phone-nav-left { display:flex; align-items:center; gap:1px; color:var(--yellow-dark); font-size:19px; font-weight:400; cursor:pointer; letter-spacing:-0.1px; }
 .phone-nav-chevron { font-size:30px; line-height:1; margin-right:1px; margin-top:-2px; font-weight:300; }
 .phone-nav-right { display:flex; align-items:center; gap:20px; }
@@ -208,7 +208,7 @@ body {
   .editor-center { padding:0; background:#fff; align-items:stretch; }
   .phone-note-card { width:100% !important; border-radius:0 !important; box-shadow:none !important; flex:1; display:flex; flex-direction:column; }
   .phone-note-content { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:calc(60px + var(--safe-bottom)); }
-  .phone-nav { padding-top:calc(8px + env(safe-area-inset-top,0px)); }
+  .phone-nav { padding-top:calc(5px + env(safe-area-inset-top,0px)); }
   .phone-nav-back-mob { display:flex !important; }
   .phone-nav-back-desk { display:none !important; }
   .empty-state { display:none !important; }
@@ -297,7 +297,7 @@ body {
           <div class="phone-nav-right">
             <!-- Share/upload icon — same visual size as dots circle -->
             <span class="phone-nav-icon" title="导出为多页图片" onclick="showExportDialog()">
-              <svg viewBox="0 0 24 24" fill="none" style="width:28px;height:28px">
+              <svg viewBox="0 0 24 24" fill="none" style="width:33px;height:33px">
                 <path d="M12 16V4M12 4L8 8.5M12 4L16 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M4.5 13.5V18.5C4.5 19.05 4.95 19.5 5.5 19.5H18.5C19.05 19.5 19.5 19.05 19.5 18.5V13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
@@ -477,7 +477,7 @@ function updatePageDividers() {
   const cardW = card.offsetWidth;
   const pageH = Math.round(cardW * 4 / 3);
   const cardH = card.scrollHeight;
-  const NAV_H = 34;
+  const NAV_H = 28;
   const contentH = pageH - NAV_H;
   let page = 1;
   const positions = [pageH];
@@ -920,7 +920,7 @@ function showExportDialog(){
   const cardW=card.offsetWidth;
   const pageH=Math.round(cardW*4/3);
   const cardH=card.scrollHeight;
-  const NAV_H=34;
+  const NAV_H=28;
   const contentH=pageH-NAV_H;
   const remaining=Math.max(0,cardH-pageH);
   const extraPages=remaining>0?Math.ceil(remaining/contentH):0;
@@ -939,7 +939,7 @@ async function startExport(){
   const pageH=Math.round(cardW*4/3);
   const cardH=card.scrollHeight;
   const SCALE=3;
-  const NAV_H=34;
+  const NAV_H=28;
   const contentH=pageH-NAV_H;
   const remaining=Math.max(0,cardH-pageH);
   const extraPages=remaining>0?Math.ceil(remaining/contentH):0;
