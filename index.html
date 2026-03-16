@@ -82,6 +82,8 @@ body {
 #note-body { font-size:17px; line-height:1.72; color:var(--text-primary); border:none; outline:none; background:transparent; width:100%; min-height:200px; font-family:inherit; word-break:break-word; }
 #note-body:empty::before { content:attr(data-placeholder); color:var(--text-tertiary); pointer-events:none; }
 #note-body blockquote { border-left:3px solid #d0d0d5; margin:2px 0; padding:1px 0 1px 16px; color:var(--text-primary); font-style:normal; }
+#note-body .note-callout { background:#f2f2f7; border-radius:10px; padding:10px 14px; margin:8px 0; font-size:15px; line-height:1.6; color:var(--text-primary); outline:none; display:block; width:100%; box-sizing:border-box; min-height:40px; word-break:break-word; }
+#note-body .note-callout:empty::before { content:'输入内容…'; color:var(--text-tertiary); pointer-events:none; }
 #note-body h1 { font-size:28px; font-weight:800; letter-spacing:-0.7px; line-height:1.22; margin:0 0 4px; }
 #note-body h2 { font-size:22px; font-weight:700; margin:10px 0 4px; }
 #note-body h3 { font-size:17px; font-weight:600; margin:7px 0 3px; }
@@ -154,7 +156,24 @@ body {
 .progress-bar-bg { height:6px; background:#e0e0e0; border-radius:99px; overflow:hidden; }
 .progress-bar-fill { height:100%; background:var(--yellow); border-radius:99px; transition:width 0.2s; }
 .progress-text { font-size:12px; color:var(--text-secondary); margin-top:6px; }
-/* CTX */
+/* SETTINGS MODAL */
+.settings-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); backdrop-filter:blur(10px); z-index:700; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.2s; }
+.settings-overlay.show { opacity:1; pointer-events:all; }
+.settings-sheet { background:#fff; border-radius:20px 20px 0 0; padding:20px 24px calc(28px + var(--safe-bottom)); width:100%; max-width:460px; box-shadow:0 -8px 40px rgba(0,0,0,0.15); transform:translateY(40px); transition:transform 0.25s cubic-bezier(0.34,1.1,0.64,1); }
+.settings-overlay.show .settings-sheet { transform:translateY(0); }
+.settings-sheet-handle { width:36px; height:4px; background:#e0e0e0; border-radius:99px; margin:0 auto 18px; }
+.settings-title { font-size:17px; font-weight:700; margin-bottom:16px; letter-spacing:-0.3px; }
+.settings-section-label { font-size:10.5px; font-weight:600; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+.ratio-options { display:flex; gap:10px; margin-bottom:18px; }
+.ratio-btn { flex:1; padding:12px 8px; border-radius:14px; border:1.5px solid var(--border); background:#fff; cursor:pointer; font-family:inherit; display:flex; flex-direction:column; align-items:center; gap:6px; transition:all 0.15s; }
+.ratio-btn:hover { border-color:var(--yellow); background:var(--yellow-light); }
+.ratio-btn.active { border-color:var(--yellow-dark); background:var(--yellow-light); }
+.ratio-preview { border-radius:4px; background:rgba(0,0,0,0.08); border:1.5px solid rgba(0,0,0,0.15); }
+.ratio-btn.active .ratio-preview { background:rgba(255,214,10,0.35); border-color:var(--yellow-dark); }
+.ratio-label { font-size:13px; font-weight:600; color:var(--text-primary); }
+.ratio-sub { font-size:10.5px; color:var(--text-secondary); }
+.settings-close-btn { width:100%; padding:12px; border-radius:12px; border:none; background:var(--yellow); color:#5a3e00; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer; margin-top:4px; transition:opacity 0.15s; }
+.settings-close-btn:hover { opacity:0.85; }
 .ctx-menu { position:fixed; background:rgba(255,255,255,0.96); backdrop-filter:blur(30px); border:1px solid rgba(0,0,0,0.12); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.14); padding:5px; z-index:1000; display:none; min-width:165px; }
 .ctx-menu.show { display:block; animation:popIn 0.12s ease; }
 @keyframes popIn { from{transform:scale(0.95);opacity:0} to{transform:scale(1);opacity:1} }
@@ -312,8 +331,8 @@ body {
                 <path d="M4.5 13.5V18.5C4.5 19.05 4.95 19.5 5.5 19.5H18.5C19.05 19.5 19.5 19.05 19.5 18.5V13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
             </span>
-            <!-- Circle with 3 dots -->
-            <span class="phone-nav-icon" onclick="showExportDialog()" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--yellow-dark);display:inline-flex;align-items:center;justify-content:center;gap:2.8px;flex-shrink:0;">
+            <!-- Circle with 3 dots → opens settings -->
+            <span class="phone-nav-icon" onclick="showSettings()" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--yellow-dark);display:inline-flex;align-items:center;justify-content:center;gap:2.8px;flex-shrink:0;">
               <span style="width:3.5px;height:3.5px;border-radius:50%;background:var(--yellow-dark);display:inline-block;"></span>
               <span style="width:3.5px;height:3.5px;border-radius:50%;background:var(--yellow-dark);display:inline-block;"></span>
               <span style="width:3.5px;height:3.5px;border-radius:50%;background:var(--yellow-dark);display:inline-block;"></span>
@@ -352,6 +371,7 @@ body {
         <button class="tb-btn" onclick="cmd('insertOrderedList')" title="有序列表">1≡</button>
         <button class="tb-btn" onclick="insertChecklistItem()" title="待办">☑</button>
         <button class="tb-btn" onclick="insertBlockquote()" title="引用">❝</button>
+        <button class="tb-btn" onclick="insertCallout()" title="灰色块">▭</button>
         <div class="tb-sep"></div>
         <button class="tb-btn" onclick="insertTable()" title="表格">⊞</button>
         <button class="tb-btn" onclick="insertDivider()" title="分割线">—</button>
@@ -373,12 +393,39 @@ body {
   </div>
 </div>
 
+<!-- SETTINGS MODAL -->
+<div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)hideSettings()">
+  <div class="settings-sheet">
+    <div class="settings-sheet-handle"></div>
+    <div class="settings-title">⚙️ 导出设置</div>
+    <div class="settings-section-label">分页比例</div>
+    <div class="ratio-options">
+      <button class="ratio-btn" data-ratio="3:4" onclick="selectRatio('3:4',this)">
+        <div class="ratio-preview" style="width:36px;height:48px"></div>
+        <span class="ratio-label">3 : 4</span>
+        <span class="ratio-sub">通用横板</span>
+      </button>
+      <button class="ratio-btn active" data-ratio="9:16" onclick="selectRatio('9:16',this)">
+        <div class="ratio-preview" style="width:27px;height:48px"></div>
+        <span class="ratio-label">9 : 16</span>
+        <span class="ratio-sub">手机竖屏</span>
+      </button>
+      <button class="ratio-btn" data-ratio="3:5" onclick="selectRatio('3:5',this)">
+        <div class="ratio-preview" style="width:28.8px;height:48px"></div>
+        <span class="ratio-label">3 : 5</span>
+        <span class="ratio-sub">小红书</span>
+      </button>
+    </div>
+    <button class="settings-close-btn" onclick="hideSettings()">完成</button>
+  </div>
+</div>
+
 <!-- EXPORT DIALOG -->
 <div class="export-overlay" id="export-overlay">
   <div class="export-box" id="export-box">
     <div class="export-box-icon">📤</div>
     <div class="export-box-title" id="export-box-title">导出多页图片</div>
-    <div class="export-box-sub" id="export-box-sub">将按 3:4 比例分页导出，打包为 ZIP 压缩包下载<br>第一页包含导航栏和标题，后续页只含正文</div>
+    <div class="export-box-sub" id="export-box-sub">将按 9:16 比例分页导出，打包为 ZIP 压缩包下载<br>第一页包含导航栏和标题，后续页只含正文</div>
     <div class="export-actions" id="export-actions">
       <button class="export-action-btn cancel" onclick="hideExportDialog()">取消</button>
       <button class="export-action-btn primary" onclick="startExport()">开始导出</button>
@@ -483,13 +530,36 @@ if (!notes.length) {
 
 function persist(){ localStorage.setItem('notes-v6', JSON.stringify(notes)); }
 
+/* ══ SETTINGS & RATIO ══ */
+// currentRatio stores [W, H] multipliers: pageH = cardW * H/W
+let currentRatio = [9, 16]; // default 9:16
+
+function showSettings(){
+  document.getElementById('settings-overlay').classList.add('show');
+}
+function hideSettings(){
+  document.getElementById('settings-overlay').classList.remove('show');
+}
+function selectRatio(ratioStr, btn){
+  document.querySelectorAll('.ratio-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const parts = ratioStr.split(':').map(Number);
+  currentRatio = parts;
+  // Update page dividers live
+  if(curId) setTimeout(updatePageDividers, 30);
+}
+
+function getRatioPageH(cardW){
+  return Math.round(cardW * currentRatio[1] / currentRatio[0]);
+}
+
 /* ══ PAGE DIVIDERS ══ */
 function updatePageDividers() {
   const card = document.getElementById('phone-note-card');
   if (!card) return;
   card.querySelectorAll('.page-divider').forEach(el => el.remove());
   const cardW = card.offsetWidth;
-  const pageH = Math.round(cardW * 4 / 3);
+  const pageH = getRatioPageH(cardW);
   const cardH = card.scrollHeight;
   const NAV_H = 28;
   const contentH = pageH - NAV_H;
@@ -708,7 +778,31 @@ function deleteCurrentNote(){
 
 /* ══ TOOLBAR ══ */
 function cmd(c){ document.getElementById('note-body').focus(); document.execCommand(c,false,null); }
-function fmtBlock(tag){ document.getElementById('note-body').focus(); document.execCommand('formatBlock',false,tag); }
+function fmtBlock(tag){
+  const body=document.getElementById('note-body');
+  body.focus();
+  const sel=window.getSelection();
+  if(!sel||sel.rangeCount===0){ document.execCommand('formatBlock',false,tag); return; }
+  // Find the block-level ancestor inside note-body
+  let node=sel.getRangeAt(0).commonAncestorContainer;
+  if(node.nodeType===3) node=node.parentNode;
+  while(node&&node.parentNode!==body) node=node.parentNode;
+  if(node&&node!==body&&/^(H1|H2|H3|H4|H5|H6|P|BLOCKQUOTE|DIV)$/.test(node.nodeName)){
+    // Direct DOM replacement — avoids execCommand quirks
+    const newEl=document.createElement(tag);
+    newEl.innerHTML=node.innerHTML;
+    node.replaceWith(newEl);
+    // Restore cursor into new element
+    const r=document.createRange();
+    r.selectNodeContents(newEl);
+    r.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    triggerAutoSave();
+  } else {
+    document.execCommand('formatBlock',false,tag);
+  }
+}
 
 function insertBlockquote(){
   const body=document.getElementById('note-body');
@@ -719,6 +813,33 @@ function insertBlockquote(){
     while(node&&node!==body){ if(node.nodeName==='BLOCKQUOTE'){ document.execCommand('formatBlock',false,'p'); return; } node=node.parentNode; }
   }
   document.execCommand('formatBlock',false,'blockquote');
+}
+
+function insertCallout(){
+  const body=document.getElementById('note-body');
+  body.focus();
+  const callout=document.createElement('div');
+  callout.className='note-callout';
+  callout.contentEditable='true';
+  callout.setAttribute('data-callout','1');
+  // Insert at cursor position
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount>0){
+    const range=sel.getRangeAt(0);
+    let node=range.startContainer;
+    while(node&&node.parentNode!==body) node=node.parentNode;
+    if(node&&node.parentNode===body){
+      node.after(callout);
+    } else {
+      body.appendChild(callout);
+    }
+  } else {
+    body.appendChild(callout);
+  }
+  const p=document.createElement('p');p.innerHTML='<br>';
+  callout.after(p);
+  setTimeout(()=>{ callout.focus(); },10);
+  triggerAutoSave();
 }
 
 function insertTable(){
@@ -875,20 +996,34 @@ function hideHlPicker(){ document.getElementById('hl-picker').classList.remove('
 
 function applyHighlight(bg, color){
   hideHlPicker();
-  document.getElementById('note-body').focus();
-  // Restore selection
+  // Save scroll positions before focus to prevent jump
+  const editorCenter = document.getElementById('editor-center');
+  const noteContent = document.getElementById('phone-note-content');
+  const scrollTop1 = editorCenter ? editorCenter.scrollTop : 0;
+  const scrollTop2 = noteContent ? noteContent.scrollTop : 0;
+  const body = document.getElementById('note-body');
+  // Restore selection first, then focus without scrolling
+  if(savedRange){
+    const sel=window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  }
+  body.focus({preventScroll: true});
+  // Restore selection again after focus
   if(savedRange){
     const sel=window.getSelection();
     sel.removeAllRanges();
     sel.addRange(savedRange);
   }
   if(!bg){
-    // Clear highlight: remove background and color
     document.execCommand('removeFormat', false, null);
   } else {
     document.execCommand('hiliteColor', false, bg);
     document.execCommand('foreColor', false, color);
   }
+  // Restore scroll positions
+  if(editorCenter) editorCenter.scrollTop = scrollTop1;
+  if(noteContent) noteContent.scrollTop = scrollTop2;
   triggerAutoSave();
 }
 
@@ -897,6 +1032,28 @@ function handleBodyKeydown(e){
   // Rebind after paste
   if(e.key==='v'&&(e.metaKey||e.ctrlKey)){
     setTimeout(()=>{ rebindChecklistEvents(); rebindTableCells(); },50);
+  }
+  // Enter in callout: if at end, exit callout and create new p
+  if(e.key==='Enter'&&!e.shiftKey){
+    const sel=window.getSelection();
+    if(sel&&sel.rangeCount>0){
+      let node=sel.getRangeAt(0).startContainer;
+      while(node&&node!==document.getElementById('note-body')){
+        if(node.classList&&node.classList.contains('note-callout')){
+          const range=sel.getRangeAt(0);
+          const atEnd=range.startOffset===range.startContainer.textContent.length&&range.startContainer===node.lastChild||range.startOffset===node.textContent.length;
+          if(atEnd){
+            e.preventDefault();
+            const p=document.createElement('p');p.innerHTML='<br>';
+            node.after(p);
+            const r=document.createRange();r.setStart(p,0);r.collapse(true);
+            sel.removeAllRanges();sel.addRange(r);
+          }
+          break;
+        }
+        node=node.parentNode;
+      }
+    }
   }
 }
 
@@ -973,14 +1130,15 @@ function addTag(){
 function showExportDialog(){
   const card=document.getElementById('phone-note-card');
   const cardW=card.offsetWidth;
-  const pageH=Math.round(cardW*4/3);
+  const pageH=getRatioPageH(cardW);
   const cardH=card.scrollHeight;
   const NAV_H=28;
   const contentH=pageH-NAV_H;
   const remaining=Math.max(0,cardH-pageH);
   const extraPages=remaining>0?Math.ceil(remaining/contentH):0;
   const pageCount=1+extraPages;
-  document.getElementById('export-box-sub').innerHTML=`将按 3:4 比例分页，共 <b>${pageCount}</b> 页<br>打包为 ZIP 压缩包下载`;
+  const ratioLabel=currentRatio.join(':');
+  document.getElementById('export-box-sub').innerHTML=`将按 ${ratioLabel} 比例分页，共 <b>${pageCount}</b> 页<br>打包为 ZIP 压缩包下载`;
   document.getElementById('export-actions').style.display='flex';
   document.getElementById('progress-wrap').style.display='none';
   document.getElementById('export-box-title').textContent='导出多页图片';
@@ -991,7 +1149,7 @@ function hideExportDialog(){ document.getElementById('export-overlay').classList
 async function startExport(){
   const card=document.getElementById('phone-note-card');
   const cardW=card.offsetWidth;
-  const pageH=Math.round(cardW*4/3);
+  const pageH=getRatioPageH(cardW);
   const cardH=card.scrollHeight;
   const SCALE=3;
   const NAV_H=28;
@@ -1078,7 +1236,7 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.note-table')) document.querySelectorAll('.note-table td').forEach(c=>c.classList.remove('cell-active'));
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){hideCtx();hideExportDialog();hideTableCtx();hideHlPicker();}
+  if(e.key==='Escape'){hideCtx();hideExportDialog();hideTableCtx();hideHlPicker();hideSettings();}
   if((e.metaKey||e.ctrlKey)&&e.key==='n'){e.preventDefault();createNote();}
 });
 document.getElementById('export-overlay').addEventListener('click',function(e){if(e.target===this)hideExportDialog();});
