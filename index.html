@@ -125,8 +125,8 @@ body {
 .hl-row:hover { background:var(--hover); }
 .hl-swatch { width:18px; height:18px; border-radius:50%; flex-shrink:0; }
 .hl-clear { border-top:1px solid var(--border-light); margin-top:2px; padding-top:6px; color:var(--text-secondary); }
-/* Force highlight spans to stay inline and not stretch full width */
-#note-body span[style*="background"] { display:inline !important; }
+/* Force highlight spans to stay inline */
+#note-body span[data-hl] { display:inline !important; }
 /* PAGE DIVIDERS */
 .page-divider { position:absolute; left:0; right:0; pointer-events:none; z-index:30; display:flex; align-items:center; justify-content:flex-end; }
 .page-divider::before { content:''; position:absolute; left:0; right:0; top:0; border-top:1.5px dashed rgba(255,130,0,0.55); }
@@ -1026,32 +1026,51 @@ function hideHlPicker(){ document.getElementById('hl-picker').classList.remove('
 
 function applyHighlight(bg, color){
   hideHlPicker();
-  // Save scroll positions before focus to prevent jump
   const editorCenter = document.getElementById('editor-center');
   const noteContent = document.getElementById('phone-note-content');
   const scrollTop1 = editorCenter ? editorCenter.scrollTop : 0;
   const scrollTop2 = noteContent ? noteContent.scrollTop : 0;
   const body = document.getElementById('note-body');
-  // Restore selection first, then focus without scrolling
+
+  // Restore saved selection
+  const sel = window.getSelection();
   if(savedRange){
-    const sel=window.getSelection();
     sel.removeAllRanges();
     sel.addRange(savedRange);
   }
   body.focus({preventScroll: true});
-  // Restore selection again after focus
   if(savedRange){
-    const sel=window.getSelection();
     sel.removeAllRanges();
     sel.addRange(savedRange);
   }
+
   if(!bg){
+    // Clear: unwrap any highlight spans in selection
     document.execCommand('removeFormat', false, null);
+    // Also manually strip any leftover hl spans
+    body.querySelectorAll('span[data-hl]').forEach(span=>{
+      const parent=span.parentNode;
+      while(span.firstChild) parent.insertBefore(span.firstChild, span);
+      parent.removeChild(span);
+    });
   } else {
-    document.execCommand('hiliteColor', false, bg);
-    document.execCommand('foreColor', false, color);
+    const range = sel.rangeCount>0 ? sel.getRangeAt(0) : null;
+    if(range && !range.collapsed){
+      // Extract selection contents into a fragment, wrap in a span
+      const frag = range.extractContents();
+      const span = document.createElement('span');
+      span.setAttribute('data-hl','1');
+      span.style.cssText = `background-color:${bg};color:${color};display:inline;`;
+      span.appendChild(frag);
+      range.insertNode(span);
+      // Restore selection to after the span
+      range.setStartAfter(span);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
   }
-  // Restore scroll positions
+
   if(editorCenter) editorCenter.scrollTop = scrollTop1;
   if(noteContent) noteContent.scrollTop = scrollTop2;
   triggerAutoSave();
