@@ -636,6 +636,7 @@ function openNote(id){
   body.innerHTML=note.body||'';
   // Rebind checklist items in the DOM
   rebindChecklistEvents();
+  rebindCallouts();
   renderTags(note);
   renderList(document.getElementById('search-input').value);
   setTimeout(updatePageDividers, 80);
@@ -715,6 +716,21 @@ function rebindChecklistEvents(){
     if(cb && !cb._bound){ cb._bound=true; cb.addEventListener('change',()=>{ txt&&txt.classList.toggle('done',cb.checked); triggerAutoSave(); }); }
     if(txt && !txt._bound){ txt._bound=true; txt.addEventListener('input',()=>triggerAutoSave()); }
     if(del && !del._bound){ del._bound=true; del.addEventListener('click',()=>{ row.remove(); triggerAutoSave(); }); }
+  });
+}
+
+// Re-attach paste interceptor to callout blocks loaded from saved HTML
+function rebindCallouts(){
+  document.querySelectorAll('#note-body .note-callout').forEach(callout=>{
+    if(!callout._calloutBound){
+      callout._calloutBound=true;
+      callout.addEventListener('paste',(e)=>{
+        e.preventDefault();
+        const text=(e.clipboardData||window.clipboardData).getData('text/plain');
+        document.execCommand('insertText',false,text);
+      });
+      callout.addEventListener('input',()=>triggerAutoSave());
+    }
   });
 }
 
@@ -817,19 +833,45 @@ function insertBlockquote(){
 function insertCallout(){
   const body=document.getElementById('note-body');
   body.focus();
-  // Use execCommand insertHTML — most reliable inside a contenteditable
-  const html='<div class="note-callout"><br></div><p><br></p>';
-  document.execCommand('insertHTML', false, html);
-  // Move cursor into the callout
-  const callouts=body.querySelectorAll('.note-callout');
-  const last=callouts[callouts.length-1];
-  if(last){
-    last.innerHTML='';
-    const r=document.createRange();
-    r.setStart(last,0);r.collapse(true);
-    const sel=window.getSelection();
-    sel.removeAllRanges();sel.addRange(r);
+  const sel=window.getSelection();
+  // Grab selected text (if any) to pre-fill callout
+  let selectedText='';
+  if(sel&&sel.rangeCount>0&&!sel.isCollapsed){
+    selectedText=sel.toString();
+    sel.getRangeAt(0).deleteContents();
   }
+  // Build callout element
+  const callout=document.createElement('div');
+  callout.className='note-callout';
+  if(selectedText){
+    callout.textContent=selectedText;
+  } else {
+    callout.innerHTML='<br>';
+  }
+  // Intercept paste inside callout → strip to plain text
+  callout.addEventListener('paste',(e)=>{
+    e.preventDefault();
+    const text=(e.clipboardData||window.clipboardData).getData('text/plain');
+    document.execCommand('insertText',false,text);
+  });
+  callout.addEventListener('input',()=>triggerAutoSave());
+  // Insert at cursor
+  if(sel&&sel.rangeCount>0){
+    const range=sel.getRangeAt(0);
+    let node=range.startContainer;
+    while(node&&node.parentNode!==body) node=node.parentNode;
+    if(node&&node.parentNode===body){ node.after(callout); }
+    else { body.appendChild(callout); }
+  } else {
+    body.appendChild(callout);
+  }
+  const p=document.createElement('p');p.innerHTML='<br>';
+  callout.after(p);
+  // Place cursor at end of callout
+  const r=document.createRange();
+  r.selectNodeContents(callout);
+  r.collapse(false);
+  sel.removeAllRanges();sel.addRange(r);
   triggerAutoSave();
 }
 
